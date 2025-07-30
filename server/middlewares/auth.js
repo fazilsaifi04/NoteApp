@@ -5,23 +5,55 @@ const User = require("../models/User");
 
 exports.auth = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).json({ message: "Not authenticated" });
+    // Get token from cookies or headers
+    const token = req.cookies?.token || 
+                 req.headers.authorization?.replace('Bearer ', '');
 
+    if (!token) {
+      console.log("No token found in request");
+      return res.status(401).json({ 
+        success: false,
+        message: "Authentication required" 
+      });
+    }
+
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select("-password");
-    if (!user) return res.status(401).json({ message: "User not found" });
+    console.log("Decoded token:", decoded);
 
-    req.user = user; 
+    // Verify user exists
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      console.log(`User ${decoded.userId} not found`);
+      return res.status(404).json({ 
+        success: false,
+        message: "User account not found" 
+      });
+    }
+
+    // Attach user to request
+    req.user = {
+      userId: user._id.toString(),
+      email: user.email
+    };
+
     next();
-  } catch (err) {
-    console.error("Auth error:", err);
-    return res.status(401).json({ message: "Invalid token" });
+  } catch (error) {
+    console.error("Authentication error:", error.message);
+    
+    let message = "Authentication failed";
+    if (error.name === 'TokenExpiredError') {
+      message = "Session expired. Please login again";
+    } else if (error.name === 'JsonWebTokenError') {
+      message = "Invalid authentication token";
+    }
+
+    return res.status(401).json({ 
+      success: false,
+      message 
+    });
   }
 };
-
-
-
 
 
 // exports.protect = async (req, res, next) => {
