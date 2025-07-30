@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import instance from "../api/api";
+import instance from "../api/api"; 
 import logo from "../assets/top.png";
 import rightImg from "../assets/right-column.png";
 
@@ -26,8 +26,8 @@ const Login = () => {
       return;
     }
 
-    setShowOTPField(true);
-    setSendingOtp(true);
+    setShowOTPField(true); 
+    setSendingOtp(true); 
 
     try {
       await instance.post("/auth/send-otp", {
@@ -38,7 +38,7 @@ const Login = () => {
       console.error("Error sending OTP:", err?.response?.data || err.message);
       alert(err?.response?.data?.message || "Failed to send OTP.");
     } finally {
-      setSendingOtp(false);
+      setSendingOtp(false); 
     }
   };
 
