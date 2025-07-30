@@ -1,27 +1,58 @@
 const express = require("express");
-const cors = require("cors");
-const cookieParser = require("cookie-parser");
-const dotenv = require("dotenv");
-const authRoutes = require("./routes/User"); // Adjust to your path
-
-dotenv.config();
-
 const app = express();
 
-app.use(express.json());
-app.use(cookieParser());
+const userRoutes = require("./routes/User"); 
+const noteRoutes = require("./routes/NoteRoutes"); 
 
-// ✅ Allow frontend access with credentials
+const database = require("./config/database");
+
+const cors = require("cors");
+const dotenv = require("dotenv");
+
+
+dotenv.config();
+const PORT = process.env.PORT || 5000;
+
+database.connect();
+
+
+app.use(express.json());
+
+
 app.use(cors({
-  origin: "https://note-app-umber-rho.vercel.app/", // e.g. Netlify or localhost
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'https://note-app-umber-rho.vercel.app'
+  ],
+  credentials: true,
+  exposedHeaders: ['set-cookie']
 }));
 
-app.use("/api/v1/auth", authRoutes); // Mount your auth routes
+
+app.use("/api/v1/auth", userRoutes);
+app.use("/api/v1/notes", noteRoutes); 
+
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
+
 
 app.get("/", (req, res) => {
-  res.send("API is working");
+  return res.status(200).json({
+    success: true,
+    message: "Your server is up and running...",
+  });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err.stack);
+  res.status(500).json({
+    success: false,
+    message: "Internal Server Error",
+  });
+});
+
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
+});
