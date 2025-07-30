@@ -95,6 +95,8 @@ exports.signup = async (req, res) => {
   }
 };
 
+
+
 exports.login = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -129,10 +131,17 @@ exports.login = async (req, res) => {
       { expiresIn: "24h" }
     );
 
+    
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,             
+      sameSite: "None",         
+      maxAge: 24 * 60 * 60 * 1000, 
+    });
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      token,
       user,
     });
   } catch (error) {
@@ -143,6 +152,7 @@ exports.login = async (req, res) => {
     });
   }
 };
+
 
 const otps = {};
 
@@ -189,18 +199,16 @@ exports.verifyOtp = async (req, res) => {
       expiresIn: "7d",
     });
 
-    // 🍪 Set token as cookie
     res
       .cookie("token", token, {
         httpOnly: true,
-        sameSite: "Lax", // or "None" if frontend is on another origin
-        secure: process.env.NODE_ENV === "production", // only true in prod
+        sameSite: "Lax", 
+        secure: process.env.NODE_ENV === "production", 
         maxAge: 7 * 24 * 60 * 60 * 1000,
       })
       .status(200)
       .json({ success: true, message: "OTP verified successfully", user });
 
-    // 🎉 Send success response
     return res.status(200).json({
       success: true,
       message: "OTP verified and user authenticated",

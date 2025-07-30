@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const User = require("../models/User");
 
+
 exports.auth = async (req, res, next) => {
   try {
     const token = req.cookies.token;
@@ -11,13 +12,17 @@ exports.auth = async (req, res, next) => {
     const user = await User.findById(decoded.userId).select("-password");
     if (!user) return res.status(401).json({ message: "User not found" });
 
-    req.user = user;
+    req.user = user; 
     next();
   } catch (err) {
     console.error("Auth error:", err);
     return res.status(401).json({ message: "Invalid token" });
   }
 };
+
+
+
+
 
 // exports.protect = async (req, res, next) => {
 //   try {
