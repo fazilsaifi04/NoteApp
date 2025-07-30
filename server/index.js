@@ -1,43 +1,27 @@
 const express = require("express");
-const app = express();
-const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
+const authRoutes = require("./routes/User"); // Adjust to your path
 
 dotenv.config();
 
-// Database connection
-require("./config/database").connect();
-
-// Middleware ORDER IS CRUCIAL
-app.use(cookieParser()); // Must come before CORS
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://note-app-umber-rho.vercel.app'
-  ],
-  credentials: true,
-  exposedHeaders: ['set-cookie']
-}));
+const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
-// Routes
-app.use("/api/v1/auth", require("./routes/User"));
-app.use("/api/v1/notes", require("./routes/NoteRoutes"));
+// ✅ Allow frontend access with credentials
+app.use(cors({
+  origin: "https://note-app-umber-rho.vercel.app/", // e.g. Netlify or localhost
+  credentials: true
+}));
 
-// Health check
+app.use("/api/v1/auth", authRoutes); // Mount your auth routes
+
 app.get("/", (req, res) => {
-  res.json({ status: "Server is running" });
-});
-
-// Error handling
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Internal Server Error" });
+  res.send("API is working");
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

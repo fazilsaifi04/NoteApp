@@ -121,63 +121,28 @@ exports.login = async (req, res) => {
 };
 
 exports.verifyOtp = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
+  const { email, otp } = req.body;
 
-    const existingOtp = await OTP.findOne({ email }).sort({ createdAt: -1 });
-    if (!existingOtp || existingOtp.otp !== otp) {
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
-    }
-
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = await User.create({ name: "New User", email });
-    }
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "OTP verified successfully",
-      token,
-      user: { name: user.name, email: user.email },
-    });
-  } catch (err) {
-    console.error("Verify OTP Error:", err.message);
-    return res.status(500).json({ success: false, message: "Verification failed" });
+  const latestOtp = await OTP.findOne({ email }).sort({ createdAt: -1 });
+  if (!latestOtp || latestOtp.otp !== otp) {
+    return res.status(400).json({ success: false, message: "Invalid OTP" });
   }
+
+  let user = await User.findOne({ email });
+  if (!user) {
+    user = await User.create({ name: "New User", email });
+  }
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return res.status(200).json({ success: true, user: { name: user.name, email: user.email }, token });
 };
 
-exports.getMe = async (req, res) => {
-  try {
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ success: false, message: "Not authenticated" });
-    }
 
-    const user = await User.findById(req.user.userId).select("name email");
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    return res.status(200).json({
-      success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      }
-    });
-  } catch (error) {
-    console.error("GetMe Error:", error);
-    return res.status(500).json({ success: false, message: "Server error" });
-  }
-};
