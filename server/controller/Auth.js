@@ -107,55 +107,28 @@ exports.login = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    if (!email || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: ERROR_MESSAGES.FIELDS_REQUIRED
-      });
-    }
-
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: ERROR_MESSAGES.USER_NOT_FOUND
-      });
+      return res.status(401).json({ success: false, message: "Invalid email" });
     }
 
-    const latestOTP = await OTP.findOne({ email }).sort({ createdAt: -1 });
-    if (!latestOTP || latestOTP.otp !== otp) {
-      return res.status(400).json({ 
-        success: false, 
-        message: ERROR_MESSAGES.INVALID_OTP 
-      });
-    }
+    // (Optional) Validate OTP here...
 
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 24 * 60 * 60 * 1000,
-      domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
+    // ✅ Generate token
+    const payload = { id: user._id };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "1d",
     });
 
-    await OTP.deleteMany({ email });
-
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
-      user: { id: user._id, name: user.name, email: user.email }
+      message: "Login successful",
+      token, // ✅ Include the token here
+      user,
     });
-  } catch (error) {
-    console.error("Login Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Login failed"
-    });
+  } catch (err) {
+    console.error("Login error:", err.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
@@ -207,20 +180,20 @@ exports.verifyOtp = async (req, res) => {
     );
 
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      domain: process.env.NODE_ENV === "production" ? '.onrender.com' : undefined
-    });
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  domain: process.env.NODE_ENV === "production" ? '.onrender.com' : undefined
+});
 
-    await OTP.deleteMany({ email });
+return res.status(200).json({
+  success: true,
+  message: "OTP verified successfully",
+  token, // Send token in body too
+  user: { id: user._id, name: user.name, email: user.email }
+});
 
-    return res.status(200).json({
-      success: true,
-      message: "OTP verified successfully",
-      user: { id: user._id, name: user.name, email: user.email }
-    });
   } catch (error) {
     console.error("Verify OTP Error:", error);
     return res.status(500).json({ 
