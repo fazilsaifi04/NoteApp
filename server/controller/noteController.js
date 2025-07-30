@@ -2,9 +2,8 @@ const Note = require("../models/Note");
 
 exports.getNotes = async (req, res) => {
   try {
-    console.log("User Info:", req.user);
-    const notes = await Note.find({ userId: req.user.userId });
-
+    console.log("User Info:", req.user.name, req.user.email);
+    const notes = await Note.find({ userId: req.user.id }); 
     res.status(200).json({
       user: { name: req.user.name, email: req.user.email },
       notes,
@@ -15,20 +14,20 @@ exports.getNotes = async (req, res) => {
   }
 };
 
+
 exports.createNote = async (req, res) => {
   console.log("📥 Note creation request:", req.body);
   console.log("🧑‍💻 Authenticated user:", req.user);
 
   const { title, content } = req.body;
-  if (!title || !content) {
-    return res.status(400).json({ error: "Title and content required" });
-  }
+
+  if (!title || !content) return res.status(400).json({ error: "Title and content required" });
 
   try {
     const newNote = new Note({
       title,
       content,
-      userId: req.user.userId,
+      userId: req.user.id,
     });
 
     await newNote.save();
@@ -41,11 +40,12 @@ exports.createNote = async (req, res) => {
   }
 };
 
+
 exports.deleteNote = async (req, res) => {
   try {
     const note = await Note.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user.userId,
+      userId: req.user.id, 
     });
 
     if (!note) {
@@ -59,19 +59,20 @@ exports.deleteNote = async (req, res) => {
   }
 };
 
+
 exports.updateNote = async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
 
   try {
-    const updatedNote = await Note.findOneAndUpdate(
-      { _id: id, userId: req.user.userId },
+    const updatedNote = await Note.findByIdAndUpdate(
+      id,
       { title, content },
       { new: true }
     );
 
     if (!updatedNote) {
-      return res.status(404).json({ message: "Note not found or unauthorized" });
+      return res.status(404).json({ message: "Note not found" });
     }
 
     res.status(200).json(updatedNote);

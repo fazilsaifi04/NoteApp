@@ -4,40 +4,35 @@ const jwt = require("jsonwebtoken");
 const otpGenerator = require("otp-generator");
 require("dotenv").config();
 
-const ERROR_MESSAGES = {
-  EMAIL_REQUIRED: "Email is required",
-  INVALID_OTP: "Invalid or expired OTP",
-  USER_EXISTS: "User already exists. Please log in.",
-  FIELDS_REQUIRED: "All required fields are missing",
-  USER_NOT_FOUND: "User not found. Please sign up.",
-  AUTH_FAILED: "Not authenticated"
-};
+exports.sendotp = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-// Helper: Generate Unique OTP
-const generateUniqueOTP = async () => {
-  let otp;
-  do {
-    otp = otpGenerator.generate(6, {
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
+    }
+
+    const existingUser = await User.findOne({ email });
+
+    let otp = otpGenerator.generate(6, {
       upperCaseAlphabets: false,
       lowerCaseAlphabets: false,
       specialChars: false,
     });
-  } while (await OTP.findOne({ otp }));
-  return otp;
-};
 
-exports.sendotp = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, message: ERROR_MESSAGES.EMAIL_REQUIRED });
+    while (await OTP.findOne({ otp })) {
+      otp = otpGenerator.generate(6, {
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
+      });
     }
 
-    const existingUser = await User.findOne({ email });
-    const otp = await generateUniqueOTP();
-
     await OTP.create({ email, otp });
-    console.log(`OTP for ${email}: ${otp}`);
+
+    console.log(`🔐 OTP sent to ${email}: ${otp}`);
 
     return res.status(200).json({
       success: true,
@@ -46,103 +41,206 @@ exports.sendotp = async (req, res) => {
     });
   } catch (error) {
     console.error("Send OTP Error:", error);
-    return res.status(500).json({ success: false, message: "Failed to send OTP" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to send OTP" });
   }
 };
 
 exports.signup = async (req, res) => {
   try {
     const { name, dateOfBirth, email, otp } = req.body;
+
     if (!name || !dateOfBirth || !email || !otp) {
-      return res.status(400).json({ success: false, message: ERROR_MESSAGES.FIELDS_REQUIRED });
+      return res.status(400).json({
+        success: false,
+        message: "All fields (name, dateOfBirth, email, OTP) are required",
+      });
     }
 
-    if (await User.findOne({ email })) {
-      return res.status(400).json({ success: false, message: ERROR_MESSAGES.USER_EXISTS });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists. Please log in.",
+      });
     }
 
-    const latestOTP = await OTP.findOne({ email }).sort({ createdAt: -1 });
-    if (!latestOTP || latestOTP.otp !== otp) {
-      return res.status(400).json({ success: false, message: ERROR_MESSAGES.INVALID_OTP });
+    const latestOTP = await OTP.find({ email })
+      .sort({ createdAt: -1 })
+      .limit(1);
+    if (!latestOTP.length || latestOTP[0].otp !== otp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired OTP" });
     }
 
-    const user = await User.create({ name, dateOfBirth, email });
-    await OTP.deleteMany({ email });
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+    const user = await User.create({
+      name,
+      dateOfBirth,
+      email,
     });
 
     return res.status(201).json({
       success: true,
       message: "User registered successfully",
-      token,
-      user: { id: user._id, name: user.name, email: user.email }
+      user,
     });
   } catch (error) {
     console.error("Signup Error:", error);
-    return res.status(500).json({ success: false, message: "Signup failed" });
+    return res.status(500).json({
+      success: false,
+      message: "Signup failed",
+    });
   }
 };
+
+
 
 exports.login = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ success: false, message: "Invalid email" });
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
     }
 
-    const latestOTP = await OTP.findOne({ email }).sort({ createdAt: -1 });
-    if (!latestOTP || latestOTP.otp !== otp) {
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found. Please sign up.",
+      });
+    }
+
+    const latestOTP = await OTP.find({ email })
+      .sort({ createdAt: -1 })
+      .limit(1);
+    if (!latestOTP.length || latestOTP[0].otp !== otp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    const token = jwt.sign(
+      { email: user.email, id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,             
+      sameSite: "None",         
+      maxAge: 24 * 60 * 60 * 1000, 
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      user,
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Login failed",
+    });
+  }
+};
+
+
+const otps = {};
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp, name, dateOfBirth } = req.body;
+
+    if (!email || !otp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const existingOtp = await OTP.findOne({ email, otp }).sort({
+      createdAt: -1,
+    });
+
+    if (!existingOtp) {
+      return res.status(401).json({ success: false, message: "Invalid OTP" });
+    }
+
+    const now = new Date();
+    const otpAge = (now - existingOtp.createdAt) / 1000;
+    if (otpAge > 300) {
+      return res.status(401).json({ success: false, message: "OTP expired" });
+    }
+
+    await OTP.deleteMany({ email });
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      if (!name || !dateOfBirth) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing name or date of birth for new user",
+        });
+      }
+
+      user = await User.create({ email, name, dateOfBirth });
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+      expiresIn: "7d",
     });
+
+    res
+      .cookie("token", token, {
+        httpOnly: true,
+        sameSite: "Lax", 
+        secure: process.env.NODE_ENV === "production", 
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      })
+      .status(200)
+      .json({ success: true, message: "OTP verified successfully", user });
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified and user authenticated",
+      user: {
+        name: user.name,
+        email: user.email,
+        _id: user._id,
+      },
+    });
+  } catch (error) {
+    console.error("Verify OTP Error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to verify OTP" });
+  }
+};
+
+exports.getMe = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
 
     res.status(200).json({
       success: true,
-      message: "Login successful",
-      token,
-      user,
+      user: {
+        name: req.user.name,
+        email: req.user.email,
+      },
     });
-  } catch (err) {
-    console.error("Login error:", err.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+  } catch (error) {
+    console.error("GetMe Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
-exports.verifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
-
-  const latestOtp = await OTP.findOne({ email }).sort({ createdAt: -1 });
-  if (!latestOtp || latestOtp.otp !== otp) {
-    return res.status(400).json({ success: false, message: "Invalid OTP" });
-  }
-
-  let user = await User.findOne({ email });
-  if (!user) {
-    user = await User.create({ name: "New User", email });
-  }
-
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-
-  return res.status(200).json({ success: true, user: { name: user.name, email: user.email }, token });
-};
-
-
