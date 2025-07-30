@@ -2,8 +2,9 @@ const Note = require("../models/Note");
 
 exports.getNotes = async (req, res) => {
   try {
-    console.log("User Info:", req.user.name, req.user.email);
-    const notes = await Note.find({ userId: req.user.id });
+    console.log("User Info:", req.user);
+    const notes = await Note.find({ userId: req.user.userId });
+
     res.status(200).json({
       user: { name: req.user.name, email: req.user.email },
       notes,
@@ -19,15 +20,15 @@ exports.createNote = async (req, res) => {
   console.log("🧑‍💻 Authenticated user:", req.user);
 
   const { title, content } = req.body;
-
-  if (!title || !content)
+  if (!title || !content) {
     return res.status(400).json({ error: "Title and content required" });
+  }
 
   try {
     const newNote = new Note({
       title,
       content,
-      userId: req.user.id,
+      userId: req.user.userId,
     });
 
     await newNote.save();
@@ -44,7 +45,7 @@ exports.deleteNote = async (req, res) => {
   try {
     const note = await Note.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user.id,
+      userId: req.user.userId,
     });
 
     if (!note) {
@@ -63,14 +64,14 @@ exports.updateNote = async (req, res) => {
   const { title, content } = req.body;
 
   try {
-    const updatedNote = await Note.findByIdAndUpdate(
-      id,
+    const updatedNote = await Note.findOneAndUpdate(
+      { _id: id, userId: req.user.userId },
       { title, content },
       { new: true }
     );
 
     if (!updatedNote) {
-      return res.status(404).json({ message: "Note not found" });
+      return res.status(404).json({ message: "Note not found or unauthorized" });
     }
 
     res.status(200).json(updatedNote);
