@@ -1,28 +1,28 @@
+import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import instance from "../api/api";
+import api from "../api/api"; 
 
 const PrivateRoute = ({ children }) => {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await instance.get("/auth/me");
-        setAuthenticated(true);
+        const res = await api.get("/auth/me");
+        console.log("Authenticated user:", res.data.user);
+        setIsAuthenticated(true);
       } catch (err) {
-        setAuthenticated(false);
-      } finally {
-        setLoading(false);
+        console.error("Auth verification failed:", err);
+        setIsAuthenticated(false);
       }
     };
+
     checkAuth();
   }, []);
 
-  if (loading) return <div>Loading...</div>;
-  return authenticated ? children : <Navigate to="/signup" />;
-};
+  if (isAuthenticated === null) return <div>Loading...</div>;
 
+  return isAuthenticated ? children : <Navigate to="/login" />;
+};
 
 export default PrivateRoute;

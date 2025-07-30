@@ -1,8 +1,8 @@
 import axios from "axios";
 
-const instance = axios.create({
+const api = axios.create({
   baseURL: "https://noteapp-fv2x.onrender.com/api/v1",
-  withCredentials: true,
+  withCredentials: true 
 });
 
-export default instance;
+export default api;

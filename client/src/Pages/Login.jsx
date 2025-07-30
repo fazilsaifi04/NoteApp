@@ -43,29 +43,30 @@ const Login = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const { email, otp } = formData;
-    if (!email || !otp) {
-      alert("All fields are required.");
-      return;
-    }
+  const { email, otp } = formData;
+  if (!email || !otp) {
+    alert("All fields are required.");
+    return;
+  }
 
-    try {
-      const res = await instance.post("/auth/verify-otp", {
-        email,
-        otp,
-      });
+  try {
+    const res = await instance.post("/auth/verify-otp", {
+      email,
+      otp,
+    });
 
-      alert("Login successful!");
+  
+    localStorage.setItem("token", res.data.token);
+    alert("Login successful!");
+    navigate("/dashboard");
+  } catch (err) {
+    console.error("Error verifying OTP:", err?.response?.data || err.message);
+    alert(err?.response?.data?.message || "Invalid OTP.");
+  }
+};
 
-      localStorage.setItem("isLoggedIn", "true");
-      navigate("/dashboard");
-    } catch (err) {
-      console.error("Error verifying OTP:", err?.response?.data || err.message);
-      alert(err?.response?.data?.message || "Invalid OTP.");
-    }
-  };
 
   return (
     <div className="w-full h-screen bg-white flex items-center justify-center px-4 py-6 md:px-10 relative">

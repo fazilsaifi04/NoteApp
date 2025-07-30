@@ -21,10 +21,7 @@ const Dashboard = () => {
         setUser(res.data.user || {});
         setNotes(res.data.notes || []);
       } catch (err) {
-        console.error(
-          "Error fetching user/notes:",
-          err.response?.data || err.message
-        );
+        console.error("Error fetching user/notes:", err.response?.data || err.message);
         if (err.response?.status === 401) {
           navigate("/signup");
         }
@@ -105,9 +102,7 @@ const Dashboard = () => {
 
       {/* User Info */}
       <div className="w-full max-w-sm bg-white shadow-md rounded-xl p-8 mb-8">
-        <h2 className="text-lg font-semibold">
-          Welcome, {user.name || "User"}!
-        </h2>
+        <h2 className="text-lg font-semibold">Welcome, {user.name || "User"}!</h2>
         <p className="text-sm text-gray-500 mt-1">Email: {user.email}</p>
       </div>
 
@@ -183,12 +178,8 @@ const Dashboard = () => {
               >
                 <div className="flex justify-between items-start">
                   <div className="overflow-hidden">
-                    <h4 className="text-md font-bold text-gray-800 truncate">
-                      {note.title}
-                    </h4>
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {note.content}
-                    </p>
+                    <h4 className="text-md font-bold text-gray-800 truncate">{note.title}</h4>
+                    <p className="text-sm text-gray-600 line-clamp-2">{note.content}</p>
                   </div>
                   <button
                     onClick={(e) => {
