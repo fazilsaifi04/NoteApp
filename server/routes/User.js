@@ -19,7 +19,7 @@ router.post("/login", login);
 
 router.post("/verify-otp", verifyOtp); 
 
-router.get("/me", auth, getMe);
+router.get("/me", getMe);
 
 // Get user info (name & email) — protected
 // router.get("/user-info", auth, (req, res) => {
