@@ -5,7 +5,8 @@ const userRoutes = require("./routes/User");
 const noteRoutes = require("./routes/NoteRoutes"); 
 
 const database = require("./config/database");
-
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
 const cors = require("cors");
 const dotenv = require("dotenv");
 
@@ -20,20 +21,13 @@ app.use(express.json());
 
 
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://note-app-umber-rho.vercel.app'
-  ],
+  origin: "http://localhost:3000",
   credentials: true,
-  exposedHeaders: ['set-cookie']
 }));
 
 
 app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/notes", noteRoutes); 
-
-const cookieParser = require("cookie-parser");
-app.use(cookieParser());
 
 
 app.get("/", (req, res) => {
